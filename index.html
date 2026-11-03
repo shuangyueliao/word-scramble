@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="description" content="Word Scramble — unscramble jumbled letter tiles into hidden words. Free single-file HTML5 word puzzle with a 60-second Blitz mode and a relaxing Zen mode.">
+<title>Word Scramble · Letter Tile Word Puzzle</title>
+<script>
+// 平台 SDK 按域名条件加载（独立运行时完全不加载，游戏行为不变）
+(function () {
+  var host = location.hostname || "";
+  try {
+    if (host.indexOf("crazygames") !== -1) {
+      var s1 = document.createElement("script");
+      s1.src = "https://sdk.crazygames.com/crazygames-sdk-v3.js";
+      s1.onload = function () {
+        if (window.CrazyGames && window.CrazyGames.SDK) {
+          window.CrazyGames.SDK.init().then(function () {
+            try { window.CrazyGames.SDK.game.loadingStart(); } catch (e) {}
+            window.addEventListener("load", function () { try { window.CrazyGames.SDK.game.loadingStop(); } catch (e) {} });
+          }).catch(function () {});
+        }
+      };
+      document.head.appendChild(s1);
+      window.__portal = "crazygames";
+    } else if (host.indexOf("gamedistribution") !== -1 || host.indexOf("html5.gamedistribution.com") !== -1 || host.indexOf("gd.games") !== -1) {
+      var s2 = document.createElement("script");
+      s2.src = "https://sdk.gamedistribution.com/v2/main.min.js";
+      document.head.appendChild(s2);
+      window.__portal = "gamedistribution";
+    }
+  } catch (e) {}
+})();
+</script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html { -webkit-text-size-adjust:100%; }
+  html, body { height:100%; overflow:hidden; }
+  body {
+    font-family:-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:radial-gradient(130% 100% at 50% 0%, var(--bg1), var(--bg2));
+    color:var(--ink);
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+    touch-action:manipulation;
+  }
+  body.theme-neon {
+    --bg1:#151536; --bg2:#0a0a1c;
+    --ink:#eef0ff; --dim:#9aa0cf; --line:#31316a; --panel:#1a1a3c;
+    --acc:#4dd8ff; --acc2:#ff5bd6; --gold:#ffd76a; --ok:#3ddc84; --bad:#ff5d6c;
+    --tileA:#2d2d5e; --tileB:#1d1d40; --tileInk:#eaf6ff; --tileBorder:#45458a; --tileShadow:#111128;
+    --slotFace:rgba(255,255,255,.05); --slotBorder:#3c3c78;
+    --btnA:#34346e; --btnB:#232350; --btnInk:#e8ecff; --btnShadow:#131330;
+  }
+  body.theme-wood {
+    --bg1:#f8eed9; --bg2:#e9d8b6;
+    --ink:#43301f; --dim:#8f7a5c; --line:#d9c49c; --panel:#fdf6e6;
+    --acc:#b3541e; --acc2:#a8442a; --gold:#c98a1b; --ok:#2e8b57; --bad:#c0392b;
+    --tileA:#eecb90; --tileB:#d4a364; --tileInk:#402c17; --tileBorder:#b98d52; --tileShadow:#9a7038;
+    --slotFace:#f4ead2; --slotBorder:#cdb684;
+    --btnA:#8a5a2b; --btnB:#6f4520; --btnInk:#fdf3dd; --btnShadow:#4a2e12;
+  }
+  #app { height:100%; display:flex; flex-direction:column; align-items:center; }
+  .screen { display:none; width:100%; max-width:560px; height:100%; flex-direction:column; align-items:center; padding:12px 14px 34px; }
+  .screen.active { display:flex; }
+  #menuScreen { justify-content:center; gap:14px; text-align:center; overflow-y:auto; }
+  #gameScreen { justify-content:space-evenly; gap:8px; --tsize:48px; }
+  /* ---------- 菜单 ---------- */
+  #logo { display:flex; flex-direction:column; gap:8px; align-items:center; }
+  .logoRow { display:flex; gap:6px; }
+  .logoTile {
+    width:32px; height:40px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:20px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.35);
+    animation:wig 1.7s ease-in-out infinite alternate;
+  }
+  .logoTile:nth-child(2n) { animation-delay:.35s; }
+  .logoTile:nth-child(3n) { animation-delay:.62s; }
+  .logoTile:nth-child(5n) { animation-delay:.8s; }
+  @keyframes wig { from { transform:rotate(-4deg); } to { transform:rotate(4deg); } }
+  #tagline { color:var(--dim); font-size:13px; }
+  .modeCard {
+    width:100%; max-width:330px; background:var(--panel); border:1px solid var(--line);
+    border-radius:16px; padding:14px 18px; cursor:pointer; text-align:left; transition:transform .1s ease;
+  }
+  .modeCard:active { transform:scale(.98); }
+  .modeCard h3 { font-size:17px; letter-spacing:2px; color:var(--acc); }
+  .modeCard p { color:var(--dim); font-size:12.5px; line-height:1.45; margin-top:4px; }
+  .modeCard .mb { color:var(--gold); font-size:11px; font-weight:800; letter-spacing:1px; margin-top:8px; }
+  #menuBtns { display:flex; gap:10px; }
+  #menuStats { font-size:11px; color:var(--dim); letter-spacing:1px; }
+  #howto { font-size:10.5px; color:var(--dim); opacity:.75; }
+  /* ---------- HUD ---------- */
+  #hud { width:100%; display:flex; justify-content:space-between; align-items:flex-start; }
+  .stat { text-align:center; min-width:70px; }
+  .stat .label { font-size:10px; color:var(--dim); letter-spacing:1.6px; }
+  .stat .val { font-size:22px; font-weight:900; margin-top:1px; }
+  .val.danger { color:var(--bad); animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
+  #comboBadge { display:none; font-size:11px; font-weight:900; letter-spacing:2px; color:var(--acc2); min-height:14px; }
+  #comboBadge.on { display:block; animation:pop .18s ease; }
+  #catBadge {
+    padding:5px 16px; border-radius:999px; background:var(--panel); border:1px solid var(--line);
+    font-size:12px; font-weight:800; letter-spacing:2px; color:var(--acc);
+  }
+  /* ---------- 槽位与瓦片 ---------- */
+  #stage { position:relative; width:100%; display:flex; justify-content:center; padding:10px 0 2px; }
+  #slotsRow { display:flex; gap:8px; position:relative; }
+  #msgLayer { position:absolute; left:0; right:0; top:-6px; bottom:0; pointer-events:none; overflow:visible; }
+  .tile, .slot {
+    width:var(--tsize); height:calc(var(--tsize) * 1.1); border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:calc(var(--tsize) * .52); font-weight:800;
+  }
+  .tile {
+    background:linear-gradient(180deg, var(--tileA), var(--tileB)); color:var(--tileInk);
+    border:1px solid var(--tileBorder);
+    box-shadow:0 3px 0 var(--tileShadow), 0 5px 12px rgba(0,0,0,.22);
+    cursor:pointer; transition:transform .08s ease, opacity .15s ease, box-shadow .08s ease;
+  }
+  .tile:active { transform:translateY(2px) scale(.97); box-shadow:0 1px 0 var(--tileShadow); }
+  .tile.used { opacity:.22; transform:scale(.85); box-shadow:none; }
+  .slot { background:var(--slotFace); border:2px solid var(--slotBorder); color:var(--ink); }
+  .slot.filled { border-color:var(--acc); }
+  .slot.filled span { animation:pop .16s ease; }
+  .slot.hinted { border-color:var(--gold); }
+  .slot.hinted span { color:var(--gold); }
+  @keyframes pop { from { transform:scale(.4); } to { transform:scale(1); } }
+  #strikeLine {
+    position:absolute; left:4px; right:4px; top:50%; height:4px; margin-top:-2px; border-radius:2px;
+    background:var(--ok); transform:scaleX(0); transform-origin:left center; z-index:2; opacity:.85;
+  }
+  #slotsRow.solved #strikeLine { transform:scaleX(1); transition:transform .3s ease .1s; }
+  #slotsRow.solved .slot.filled { border-color:var(--ok); }
+  #slotsRow.solved .slot.filled span { color:var(--ok); }
+  #checkMark {
+    position:absolute; right:-9px; top:-15px; width:22px; height:22px; border-radius:50%;
+    background:var(--ok); opacity:0; transform:scale(.3); z-index:3;
+  }
+  #checkMark::after {
+    content:""; position:absolute; left:6px; top:4px; width:5px; height:10px;
+    border:solid #fff; border-width:0 3px 3px 0; transform:rotate(45deg);
+  }
+  #slotsRow.solved #checkMark { opacity:1; transform:scale(1); transition:all .25s ease .3s; }
+  #slotsRow.shake { animation:shake .4s ease; }
+  #slotsRow.shake .slot { border-color:var(--bad); }
+  #slotsRow.shake .slot.filled span { color:var(--bad); }
+  @keyframes shake {
+    0%,100% { transform:translateX(0); } 20% { transform:translateX(-9px); }
+    40% { transform:translateX(8px); } 60% { transform:translateX(-6px); } 80% { transform:translateX(4px); }
+  }
+  .msg {
+    position:absolute; left:50%; top:8px; transform:translate(-50%,0);
+    font-weight:900; font-size:19px; color:var(--acc); white-space:nowrap;
+    text-shadow:0 1px 6px rgba(0,0,0,.4); pointer-events:none;
+    animation:msgRise .95s ease forwards;
+  }
+  .msg.good { color:var(--gold); font-size:24px; }
+  .msg.bad { color:var(--bad); }
+  @keyframes msgRise {
+    0% { opacity:0; transform:translate(-50%,12px) scale(.8); }
+    15% { opacity:1; transform:translate(-50%,0) scale(1); }
+    70% { opacity:1; }
+    100% { opacity:0; transform:translate(-50%,-34px) scale(1); }
+  }
+  #tray {
+    display:flex; flex-wrap:wrap; gap:8px; justify-content:center; align-items:center;
+    width:100%; max-width:520px; min-height:calc(var(--tsize) * 1.1 + 10px);
+  }
+  .flyTile {
+    position:fixed; z-index:60; display:flex; align-items:center; justify-content:center;
+    border-radius:10px; font-weight:800; pointer-events:none;
+    background:linear-gradient(180deg, var(--tileA), var(--tileB)); color:var(--tileInk);
+    border:1px solid var(--tileBorder);
+    transition:transform .18s ease-out, opacity .18s ease-out;
+  }
+  /* ---------- 按钮与结算 ---------- */
+  .btn {
+    border:none; border-radius:12px; padding:12px 18px;
+    background:linear-gradient(180deg, var(--btnA), var(--btnB)); color:var(--btnInk);
+    font-weight:800; font-size:14px; letter-spacing:1px; cursor:pointer; font-family:inherit;
+    box-shadow:0 3px 0 var(--btnShadow);
+  }
+  .btn:active { transform:translateY(2px); box-shadow:0 1px 0 var(--btnShadow); }
+  .btn:disabled { opacity:.35; }
+  .btn.small { padding:9px 14px; font-size:12px; }
+  #controls { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; width:100%; max-width:520px; }
+  #controls .btn { flex:1 1 0; min-width:58px; padding:10px 6px; font-size:12px; }
+  #resultOverlay { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(8,8,18,.7); z-index:30; }
+  body.theme-wood #resultOverlay { background:rgba(64,46,24,.55); }
+  #resultOverlay.show { display:flex; }
+  #resultPanel { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:26px 36px; text-align:center; max-width:86vw; }
+  #resultPanel h2 { font-size:22px; letter-spacing:1px; }
+  #rNew {
+    display:none; margin:8px auto 0; padding:4px 12px; border-radius:999px;
+    background:var(--gold); color:#3a2a05; font-size:11px; font-weight:900; letter-spacing:1px;
+  }
+  .final { font-size:38px; font-weight:900; color:var(--gold); margin:6px 0 4px; }
+  #rLines { color:var(--dim); font-size:12.5px; margin-bottom:4px; }
+  #rBestLine { color:var(--dim); font-size:12px; margin-bottom:14px; }
+  #rBtns { display:flex; gap:10px; justify-content:center; }
+  #footer {
+    position:fixed; left:0; right:0; bottom:5px; text-align:center;
+    font-size:10px; color:var(--dim); pointer-events:none; z-index:1;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="menuScreen" class="screen active">
+    <div id="logo">
+      <div class="logoRow" id="logoRow1"></div>
+      <div class="logoRow" id="logoRow2"></div>
+    </div>
+    <p id="tagline">Unscramble the jumbled letters into hidden words</p>
+    <div class="modeCard" id="btnBlitz">
+      <h3>BLITZ</h3>
+      <p>Solve as many words as you can in 60 seconds. Chain answers for combo bonuses.</p>
+      <div class="mb">BEST: <span id="mBestBlitz">0</span></div>
+    </div>
+    <div class="modeCard" id="btnZen">
+      <h3>ZEN</h3>
+      <p>No timer. Five words at your own pace — relax and spell.</p>
+      <div class="mb">BEST: <span id="mBestZen">0</span></div>
+    </div>
+    <div id="menuBtns">
+      <button class="btn small" id="btnTheme">THEME: NEON</button>
+      <button class="btn small" id="btnSound">SOUND: ON</button>
+    </div>
+    <div id="menuStats">TOP STREAK: <span id="mStreak">0</span> · <span id="mWords">0</span> WORDS IN BANK</div>
+    <p id="howto">Tap tiles or type letters · Backspace to undo · Space to shuffle</p>
+  </section>
+  <section id="gameScreen" class="screen">
+    <div id="hud">
+      <div class="stat"><div class="label">SCORE</div><div class="val" id="gScore">0</div></div>
+      <div class="stat"><div class="label" id="gCenterLabel">TIME</div><div class="val" id="gCenter">60</div></div>
+      <div class="stat"><div class="label">BEST</div><div class="val" id="gBest">0</div></div>
+    </div>
+    <div id="comboBadge">COMBO ×2</div>
+    <div id="catBadge">CATEGORY</div>
+    <div id="stage">
+      <div id="slotsRow"></div>
+      <div id="msgLayer"></div>
+    </div>
+    <div id="tray"></div>
+    <div id="controls">
+      <button class="btn" id="btnShuffle">SHUFFLE</button>
+      <button class="btn" id="btnHint">HINT −20</button>
+      <button class="btn" id="btnSkip">SKIP −30</button>
+      <button class="btn" id="btnQuit">QUIT</button>
+      <button class="btn" id="btnSoundG">MUTE</button>
+    </div>
+  </section>
+</div>
+<div id="resultOverlay">
+  <div id="resultPanel">
+    <h2 id="rTitle">TIME'S UP</h2>
+    <div id="rNew">NEW BEST!</div>
+    <div class="final" id="rScore">0</div>
+    <p id="rLines">Words 0</p>
+    <p id="rBestLine">BEST 0</p>
+    <div id="rBtns">
+      <button class="btn" id="btnAgain">PLAY AGAIN</button>
+      <button class="btn" id="btnMenu2">MENU</button>
+    </div>
+  </div>
+</div>
+<div id="footer">Word Scramble — a free word puzzle game</div>
+<script>
+"use strict";
+/* ===================== 词库（构建期已去 anagram 冲突，运行时再加保险） ===================== */
+var CATS = {ANIMALS:"tiger,zebra,panda,koala,camel,otter,eagle,shark,whale,mouse,gecko,llama,sloth,hippo,rhino,moose,bison,raven,robin,finch,heron,crane,perch,trout,squid,coral,snail,horse,sheep,hound,puppy,goose,quail,stork,macaw,viper,cobra,adder,shrew,lemur,loris,baboon,kitten,rabbit,badger,beaver,ferret,gerbil,monkey,donkey,turkey,sparrow,pigeon,parrot,toucan,falcon,osprey,lizard,python,taipan,iguana,gopher,weasel,marten,cougar,jaguar,ocelot,cheetah,leopard,caribou,buffalo,walrus,dolphin,narwhal,manatee,dugong,octopus,lobster,shrimp,mussel,oyster,scallop,salmon,catfish,guppy,tetra,panther,hamster",FOOD:"apple,grape,peach,lemon,mango,cherry,banana,orange,papaya,guava,olive,prune,berry,raisin,apricot,lychee,quince,bacon,bread,butter,cheese,coffee,cookie,donut,honey,juice,pasta,pizza,salad,sugar,toast,waffle,yogurt,noodle,wheat,cream,curry,fudge,onion,pepper,tomato,potato,radish,carrot,celery,beans,cabbage,garlic,ginger,basil,thyme,sauce,gravy,syrup,cocoa,mocha,latte,muffin,pastry,pretzel,bagel,brunch,dinner,supper,snack,feast,chili,hummus,sushi,ramen,broth,roast,grill,coconut,cashew,pecan,almond,peanut,walnut,cereal,oatmeal,pancake,cupcake,brownie,pudding,custard,jelly,sorbet,gelato,teapot,kettle,chalice,goblet",NATURE:"river,ocean,beach,coast,forest,jungle,desert,meadow,field,valley,canyon,cliff,stone,pebble,boulder,gravel,oasis,island,lagoon,storm,cloud,frost,glacier,thunder,breeze,monsoon,cyclone,typhoon,tornado,drizzle,shower,sunset,sunrise,evening,morning,night,horizon,planet,comet,meteor,galaxy,cosmos,nebula,eclipse,aurora,lunar,solar,earth,venus,jupiter,saturn,neptune,uranus,mercury,orbit,space,rocket,flower,petal,blossom,tulip,daisy,lotus,orchid,lilac,jasmine,poppy,cactus,bamboo,willow,maple,cedar,birch,aspen,spruce,redwood,baobab,branch,trunk,sprout,bloom,garden,prairie,savanna,tundra,swamp,marsh,wetland,stream,brook,creek,spring,trail",HOME:"house,attic,kitchen,bedroom,chair,table,couch,bench,stool,shelf,drawer,mirror,window,curtain,carpet,floor,ceiling,porch,garage,fence,stairs,candle,torch,clock,toaster,fridge,stove,towel,bucket,broom,vacuum,pillow,blanket,quilt,sheet,cradle,closet,hanger,laundry,basket,cabinet,chimney,hearth,lounge,balcony,terrace,patio,awning,shutter,gutter,drain,faucet,socket,switch,lantern,lighter,magnet,battery,charger,cable,light",TRAVEL:"truck,train,plane,ferry,yacht,kayak,barge,tanker,cruiser,gondola,shuttle,glider,balloon,blimp,tractor,trailer,wagon,sleigh,scooter,moped,bicycle,chariot,metro,subway,sedan,coupe,minivan,camper,caravan,wheel,engine,motor,brake,clutch,gearbox,rudder,anchor,harbor,voyage,journey,travel,flight,landing,takeoff,arrival,transit,commute,driver,pilot,captain,sailor",CLOTHES:"shirt,pants,jeans,dress,skirt,shorts,boots,scarf,glove,mitten,crown,tiara,buckle,button,zipper,pocket,collar,sleeve,pajamas,sandal,sneaker,loafer,fabric,cotton,linen,velvet,satin,denim,leather,suede,plaid,pattern,outfit,apparel,garment,fashion,style,trendy,vogue",FEELINGS:"happy,merry,jolly,gloomy,moody,angry,furious,irate,serene,placid,quiet,noisy,brave,timid,proud,humble,noble,greedy,gentle,tender,cruel,harsh,savage,fierce,mighty,sturdy,fragile,clumsy,clever,witty,bright,sharp,eager,brisk,swift,speedy,rapid,steady,wobbly,stable,shaky,solid,loyal,honest,sincere,modest,grumpy,sulky,sullen,somber,panic,terror,horror,dismay,shock,curious,zealous,ardent,fervor,passion,desire,longing,yearn,faith,trust,doubt,worry,anxious,uneasy,jumpy,tense,relaxed,mellow",OBJECTS:"pencil,eraser,paper,letter,stamp,ruler,compass,globe,atlas,diary,journal,folder,binder,stapler,teddy,puzzle,marble,flute,piano,violin,cello,trumpet,guitar,banjo,ukulele,whistle,cymbal,bongo,conga,radio,speaker,camera,tripod,photo,album,poster,canvas,easel,palette,pigment,quill,scroll,novel,verse,story,tales,brush,sketch,statue,mosaic,mural,fresco,drawing,design,exhibit,museum,gallery",SPORTS:"soccer,tennis,hockey,rugby,boxing,fencing,archery,sailing,rowing,diving,surfing,skating,skiing,cycling,running,sprint,relay,hurdle,javelin,discus,hammer,wrestle,karate,boxer,pitcher,catcher,batter,fielder,bowler,goalie,striker,referee,umpire,coach,league,trophy,medal,winner,loser,score,point,stadium,arena,court,pitch,track,course,final,playoff,timeout,penalty,corner,chess,poker,darts,bowling,snooker,rummy,casino",FANTASY:"dragon,wizard,witch,magic,spell,staff,potion,elixir,charm,curse,crystal,oracle,destiny,fortune,genie,djinn,troll,giant,dwarf,fairy,pixie,sprite,goblin,titan,hydra,siren,phoenix,griffin,pegasus,unicorn,centaur,vampire,zombie,ghost,ghoul,wraith,specter,phantom,spirit,demon,devil,angel,heaven,temple,shrine,altar,ritual,miracle,legend,quest,knight,sword,shield,armor,helmet,arrow,dagger,blade,spear,banner,throne,kingdom,realm,empire,palace,tower,dungeon,guard,watch,patrol,siege,battle,peace,truce,treaty,chest,silver,bronze,copper,jewel,topaz,pearl,amber,emerald,diamond,amulet,relic",JOBS:"doctor,nurse,dentist,surgeon,artist,painter,singer,dancer,actor,writer,author,editor,butcher,barista,farmer,florist,angler,hunter,miner,builder,plumber,tailor,barber,stylist,banker,cashier,clerk,manager,officer,soldier,warden,sheriff,sleuth,agent,nanny,butler,valet,porter,janitor,scholar,student,jester,juggler,acrobat,clown,joker,trader,vendor,seller,buyer,client,patient,visitor,guest,nomad",FAMILY:"buddy,spouse,parent,mother,father,sister,brother,cousin,uncle,nephew,niece,grandma,grandpa,husband,bride,groom,infant,toddler,adult,elder,senior,junior,human,crowd,group,family,citizen,native,settler,pioneer,hiker,diver,rider,rower,skater,surfer,swimmer,runner,jogger,cyclist,climber",BODY:"brain,skull,spine,muscle,tendon,nerve,artery,blood,plasma,organ,throat,tongue,teeth,tooth,cheek,mouth,thumb,finger,wrist,elbow,waist,thigh,ankle,health,clinic,capsule,remedy,fever,chill,cough,sneeze,snore,sleep,dream,stamina,vigor,breath,breathe,liver,pulse",TIME:"minute,second,moment,instant,forever,always,often,rarely,daily,weekly,monthly,yearly,today,future,present,history,memory,recall,forget,decade,century,epoch,period,climate,season,summer,autumn,winter,weather",PLACES:"capital,nation,country,region,avenue,street,alley,bridge,tunnel,highway,freeway,square,plaza,market,stall,booth,kiosk,depot,station,airport,church,chapel,mosque,school,college,library,theater,cinema,circus,bakery,grocery,ranch,granary,factory,office,beacon,bunker,village,castle,salon,store",ACTIONS:"climb,crawl,float,glide,hover,chase,catch,carry,throw,punch,strike,smash,crash,crack,twist,slide,stumble,shove,heave,swing,shake,tremble,quiver,shiver,wobble,wiggle,splash,spray,spill,burst,explode,ignite,kindle,blaze,flame,spark,gleam,shimmer,sparkle,twinkle,dance,shout,whisper,mumble,mutter,speak,gossip,argue,debate,refuse,accept,allow,forbid,permit,grant,offer,borrow,build,create,invent,craft,carve,slice,grind,crush,blend,whisk,knead,simmer,sizzle,taste,smell,touch,glance,blink,laugh,giggle,smile,frown,ponder,imagine,believe,learn,teach,write,count,measure,compare,decide,choose,select,prefer,prepare,begin,start,finish,pause,resume,repeat,retry,yield,defeat,conquer,order,demand,request,plead,answer,reply,respond,explain,promise,escape,search,admit,gather,listen",MUSIC:"melody,rhythm,tempo,harmony,chorus,lyric,tenor,soprano,opera,concert,stage,volume,sound,noise,silence",SCIENCE:"laptop,screen,monitor,server,router,modem,pixel,vector,bitmap,program,syntax,binary,digital,robot,android,circuit,silicon,voltage,physics,gravity,energy,force,motion,speed,element,mixture,formula,number,digit,product,decimal,percent,average,total,minus,algebra,theorem,proof,logic,reason,theory,beaker,funnel,prism,radar,sonar,laser,signal,antenna,thrust,turbine,piston,pulley,wedge,screw,girder,forge,anvil,smelt,steam,power",COLORS:"yellow,purple,violet,indigo,scarlet,crimson,ivory,ebony,golden,azure,magenta,maroon,beige,white,black,brown,green"};
+
+var BANK = [];
+(function () {
+  var seenWord = {}, seenSig = {};
+  for (var c in CATS) {
+    if (!CATS.hasOwnProperty(c)) continue;
+    var arr = CATS[c].split(",");
+    for (var i = 0; i < arr.length; i++) {
+      var w = arr[i];
+      if (!w || seenWord[w]) continue;
+      seenWord[w] = 1;
+      var sig = w.split("").sort().join("");
+      if (seenSig[sig]) continue; // 同字母集合的词只保留一个，避免乱序歧义（如 tea/eat）
+      seenSig[sig] = 1;
+      BANK.push({ w: w, c: c });
+    }
+  }
+})();
+
+/* Fisher-Yates 打乱：保证乱序 ≠ 原词（重试 + 轮转兜底），且字母多重集不变 */
+function scrambleWord(word) {
+  var a = word.split(""), i, j, t, n;
+  for (n = 0; n < 24; n++) {
+    for (i = a.length - 1; i > 0; i--) {
+      j = Math.floor(Math.random() * (i + 1));
+      t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    if (a.join("") !== word) return a;
+  }
+  a = word.split("");
+  a.push(a.shift());
+  return a;
+}
+
+/* ===================== 常量与全局状态 ===================== */
+var MODES = { blitz: { time: 60, words: 0 }, zen: { time: 0, words: 5 } };
+var BASE_POINTS = 100, HINT_COST = 20, MAX_HINTS = 2, SKIP_COST = 30;
+var COMBO_STEP = 10, COMBO_CAP = 50, ZEN_QUICK = 30;
+
+function $(id) { return document.getElementById(id); }
+function sGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+function sSet(k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
+
+var screen = "menu", mode = "blitz", roundSeq = 0, wasPlaying = false;
+var score = 0, streak = 0, roundStreak = 0, solvedCount = 0, skippedCount = 0;
+var timeLeft = 0, endAt = 0, timerId = null, lastTickSec = -1, pausedRemain = null;
+var word = null, tiles = [], slots = [], slotEls = [], hinted = [];
+var hintCount = 0, locked = false, wordStartAt = 0;
+var bestBlitz = parseInt(sGet("ws_best_blitz") || "0", 10) || 0;
+var bestZen = parseInt(sGet("ws_best_zen") || "0", 10) || 0;
+var streakMax = parseInt(sGet("ws_streakmax") || "0", 10) || 0;
+var muted = sGet("ws_mute") === "1";
+var theme = sGet("ws_theme") === "wood" ? "wood" : "neon";
+
+/* ===================== 平台事件（接法照抄 game/index.html 模板） ===================== */
+function portalStart() {
+  try {
+    if (window.__portal === "crazygames" && window.CrazyGames && window.CrazyGames.SDK) {
+      window.CrazyGames.SDK.game.gameplayStart();
+    }
+  } catch (e) {}
+}
+function portalStop() {
+  try {
+    if (window.__portal === "crazygames" && window.CrazyGames && window.CrazyGames.SDK) {
+      window.CrazyGames.SDK.game.gameplayStop();
+    }
+  } catch (e) {}
+}
+function portalHappy() {
+  try {
+    if (window.__portal === "crazygames" && window.CrazyGames && window.CrazyGames.SDK) {
+      window.CrazyGames.SDK.game.happytime();
+    }
+  } catch (e) {}
+}
+
+/* ===================== WebAudio 合成音效 ===================== */
+var actx = null;
+function ac() {
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+  } catch (e) {}
+  return actx;
+}
+function beep(freq, dur, type, gainv, delay) {
+  if (muted) return;
+  try {
+    var a = ac(); if (!a) return;
+    var t = a.currentTime + (delay || 0);
+    var o = a.createOscillator(), g = a.createGain();
+    o.type = type || "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(gainv || 0.08, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t + dur);
+  } catch (e) {}
+}
+var SFX = {
+  place: function () { beep(520, 0.05, "square", 0.045); },
+  remove: function () { beep(300, 0.05, "square", 0.04); },
+  shuffle: function () { beep(360, 0.04, "triangle", 0.05); beep(480, 0.04, "triangle", 0.05, 0.05); beep(620, 0.05, "triangle", 0.05, 0.1); },
+  hint: function () { beep(880, 0.09, "sine", 0.07); beep(1320, 0.12, "sine", 0.055, 0.08); },
+  skip: function () { beep(420, 0.1, "triangle", 0.06); beep(280, 0.16, "triangle", 0.06, 0.1); },
+  correct: function (st) { var b = 440 + Math.min(st || 0, 6) * 40; beep(b, 0.09, "sine", 0.09); beep(b * 1.25, 0.09, "sine", 0.09, 0.08); beep(b * 1.5, 0.16, "sine", 0.1, 0.16); },
+  wrong: function () { beep(150, 0.16, "sawtooth", 0.06); beep(110, 0.2, "sawtooth", 0.055, 0.07); },
+  tick: function () { beep(950, 0.03, "square", 0.035); },
+  start: function () { beep(392, 0.08, "sine", 0.08); beep(523, 0.08, "sine", 0.08, 0.09); beep(659, 0.14, "sine", 0.09, 0.18); },
+  over: function () { beep(330, 0.16, "sine", 0.09); beep(262, 0.16, "sine", 0.09, 0.15); beep(196, 0.3, "sine", 0.09, 0.3); }
+};
+
+/* ===================== 渲染 ===================== */
+var palette = ["#4dd8ff", "#ff5bd6", "#ffd76a", "#7cffb2", "#c08bff", "#ff9d5c"];
+function buildLogo() {
+  var rows = ["WORD", "SCRAMBLE"], holder = [$("logoRow1"), $("logoRow2")];
+  var wood = theme === "wood";
+  var woodPal = ["#c98d4e", "#b57a3d", "#d8a765", "#a86f33"];
+  for (var r = 0; r < 2; r++) {
+    var row = holder[r];
+    row.innerHTML = "";
+    for (var i = 0; i < rows[r].length; i++) {
+      var d = document.createElement("div");
+      d.className = "logoTile";
+      d.textContent = rows[r].charAt(i);
+      var col = wood ? woodPal[(i + r) % woodPal.length] : palette[(i + r) % palette.length];
+      d.style.background = col;
+      if (!wood) d.style.boxShadow = "0 0 10px " + col + "55";
+      row.appendChild(d);
+    }
+  }
+}
+function layoutTiles() {
+  var vw = Math.min(window.innerWidth || 360, 540);
+  var n = word ? word.w.length : 6;
+  var s = Math.min(56, Math.floor((vw - 30 - (n - 1) * 8) / n));
+  var t = Math.min(56, Math.floor((vw - 60) / 7));
+  var size = Math.max(30, Math.min(s, t));
+  $("gameScreen").style.setProperty("--tsize", size + "px");
+}
+var strikeEl = document.createElement("div"); strikeEl.id = "strikeLine";
+var checkEl = document.createElement("div"); checkEl.id = "checkMark";
+function renderSlots() {
+  var row = $("slotsRow");
+  row.innerHTML = "";
+  slotEls = [];
+  var n = word ? word.w.length : 0;
+  for (var i = 0; i < n; i++) {
+    var d = document.createElement("div");
+    d.className = "slot";
+    var ti = slots[i];
+    if (ti != null) {
+      d.classList.add("filled");
+      var sp = document.createElement("span");
+      sp.textContent = tiles[ti].ch.toUpperCase();
+      d.appendChild(sp);
+    }
+    if (hinted.indexOf(i) >= 0) d.classList.add("hinted");
+    d.addEventListener("click", (function (idx) {
+      return function () { if (!locked && screen === "game") recallSlot(idx, false); };
+    })(i));
+    row.appendChild(d);
+    slotEls.push(d);
+  }
+  row.appendChild(strikeEl);
+  row.appendChild(checkEl);
+}
+function renderTray() {
+  var tray = $("tray");
+  tray.innerHTML = "";
+  for (var i = 0; i < tiles.length; i++) {
+    var b = document.createElement("div");
+    b.className = "tile" + (tiles[i].used ? " used" : "");
+    b.textContent = tiles[i].ch.toUpperCase();
+    tiles[i].el = b;
+    b.addEventListener("click", (function (idx) {
+      return function () { tileClick(idx); };
+    })(i));
+    tray.appendChild(b);
+  }
+}
+function markTray(i) {
+  if (tiles[i] && tiles[i].el) tiles[i].el.classList.toggle("used", tiles[i].used);
+}
+/* 瓦片飞入槽位的视觉特效（纯装饰，状态即时更新） */
+function flyFX(fromEl, toEl) {
+  try {
+    var a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
+    if (!a.width || !b.width) return;
+    var c = document.createElement("div");
+    c.className = "flyTile";
+    c.textContent = fromEl.textContent;
+    c.style.left = a.left + "px"; c.style.top = a.top + "px";
+    c.style.width = a.width + "px"; c.style.height = a.height + "px";
+    c.style.fontSize = window.getComputedStyle(fromEl).fontSize;
+    document.body.appendChild(c);
+    requestAnimationFrame(function () {
+      c.style.transform = "translate(" + (b.left - a.left) + "px," + (b.top - a.top) + "px)";
+      c.style.opacity = "0.15";
+    });
+    setTimeout(function () { if (c.parentNode) c.parentNode.removeChild(c); }, 300);
+  } catch (e) {}
+}
+function floatMsg(text, cls) {
+  var sp = document.createElement("div");
+  sp.className = "msg" + (cls ? " " + cls : "");
+  sp.textContent = text;
+  $("msgLayer").appendChild(sp);
+  setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 1000);
+}
+function updateHUD() {
+  $("gScore").textContent = String(score);
+  var best = mode === "blitz" ? bestBlitz : bestZen;
+  $("gBest").textContent = String(Math.max(best, score));
+  var cb = $("comboBadge");
+  if (streak >= 2) { cb.textContent = "COMBO ×" + streak; cb.classList.add("on"); }
+  else cb.classList.remove("on");
+  $("btnHint").disabled = hintCount >= MAX_HINTS;
+}
+function updateCenter() {
+  if (mode === "blitz") {
+    $("gCenterLabel").textContent = "TIME";
+    var s = Math.ceil(timeLeft);
+    $("gCenter").textContent = String(s);
+    $("gCenter").classList.toggle("danger", s <= 10 && s > 0);
+  } else {
+    $("gCenterLabel").textContent = "WORD";
+    $("gCenter").textContent = Math.min(solvedCount + 1, MODES.zen.words) + "/" + MODES.zen.words;
+  }
+}
+
+/* ===================== 对局逻辑 ===================== */
+function startWord() {
+  var pick = BANK[Math.floor(Math.random() * BANK.length)];
+  var guard = 0;
+  while (word && pick.w === word.w && guard++ < 20) pick = BANK[Math.floor(Math.random() * BANK.length)];
+  word = pick;
+  var scrambled = scrambleWord(word.w);
+  tiles = [];
+  for (var i = 0; i < scrambled.length; i++) tiles.push({ id: i, ch: scrambled[i], used: false, el: null });
+  slots = [];
+  for (var j = 0; j < word.w.length; j++) slots.push(null);
+  hinted = []; hintCount = 0; locked = false; wordStartAt = Date.now();
+  $("slotsRow").classList.remove("solved", "shake");
+  $("catBadge").textContent = word.c;
+  layoutTiles();
+  renderSlots();
+  renderTray();
+  updateHUD();
+  updateCenter();
+}
+function tileClick(i) {
+  if (locked || screen !== "game") return;
+  if (tiles[i].used) {
+    var si = slots.indexOf(i);
+    if (si >= 0) recallSlot(si, false);
+  } else place(i);
+}
+function place(ti) {
+  if (locked || screen !== "game") return;
+  if (tiles[ti].used) return;
+  var si = slots.indexOf(null);
+  if (si < 0) return;
+  slots[si] = ti;
+  tiles[ti].used = true;
+  renderSlots();
+  markTray(ti);
+  flyFX(tiles[ti].el, slotEls[si]);
+  SFX.place();
+  if (slots.indexOf(null) < 0) checkGuess();
+}
+function recallSlot(si, silent) {
+  if (!word) return;
+  var ti = slots[si];
+  if (ti == null) return;
+  slots[si] = null;
+  tiles[ti].used = false;
+  var hi = hinted.indexOf(si);
+  if (hi >= 0) hinted.splice(hi, 1);
+  renderSlots();
+  markTray(ti);
+  if (!silent) SFX.remove();
+}
+function undoLast() {
+  if (locked || screen !== "game") return;
+  for (var i = slots.length - 1; i >= 0; i--) {
+    if (slots[i] != null) { recallSlot(i, false); return; }
+  }
+}
+function checkGuess() {
+  var g = slots.map(function (ti) { return tiles[ti].ch; }).join("");
+  if (g === word.w) onCorrect(); else onWrong();
+}
+function onWrong() {
+  locked = true;
+  streak = 0;
+  updateHUD();
+  $("slotsRow").classList.add("shake");
+  SFX.wrong();
+  var seq = roundSeq;
+  setTimeout(function () {
+    if (seq !== roundSeq || screen !== "game") return;
+    $("slotsRow").classList.remove("shake");
+    for (var i = 0; i < slots.length; i++) if (slots[i] != null) recallSlot(i, true);
+    locked = false;
+  }, 430);
+}
+function onCorrect() {
+  locked = true;
+  solvedCount++; streak++;
+  if (streak > roundStreak) roundStreak = streak;
+  if (streak > streakMax) { streakMax = streak; sSet("ws_streakmax", String(streakMax)); }
+  var gain = BASE_POINTS;
+  if (mode === "blitz") gain += Math.max(0, Math.floor(timeLeft));
+  else gain += Math.max(0, ZEN_QUICK - Math.floor((Date.now() - wordStartAt) / 1000));
+  gain += Math.min(Math.max(streak - 1, 0) * COMBO_STEP, COMBO_CAP);
+  score += gain;
+  $("slotsRow").classList.add("solved");
+  floatMsg("+" + gain, "good");
+  SFX.correct(streak);
+  updateHUD();
+  var seq = roundSeq;
+  setTimeout(function () {
+    if (seq !== roundSeq || screen !== "game") return;
+    $("slotsRow").classList.remove("solved");
+    if (mode === "zen" && solvedCount >= MODES.zen.words) endRound();
+    else startWord();
+  }, 900);
+}
+function useHint() {
+  if (locked || screen !== "game" || !word) return;
+  if (hintCount >= MAX_HINTS) return;
+  var target = -1, i, k;
+  for (i = 0; i < word.w.length; i++) {
+    var cur = slots[i] != null ? tiles[slots[i]].ch : "";
+    if (cur !== word.w.charAt(i)) { target = i; break; }
+  }
+  if (target < 0) return;
+  hintCount++;
+  score = Math.max(0, score - HINT_COST);
+  if (slots[target] != null) recallSlot(target, true);
+  var L = word.w.charAt(target), ti = -1;
+  for (k = 0; k < tiles.length; k++) {
+    if (!tiles[k].used && tiles[k].ch === L) { ti = k; break; }
+  }
+  if (ti < 0) {
+    for (k = 0; k < slots.length; k++) {
+      if (k !== target && slots[k] != null && tiles[slots[k]].ch === L && word.w.charAt(k) !== L) {
+        ti = slots[k];
+        recallSlot(k, true);
+        break;
+      }
+    }
+  }
+  if (ti < 0) { hintCount--; return; } // 理论上不会发生（多重集守恒）
+  slots[target] = ti;
+  tiles[ti].used = true;
+  hinted.push(target);
+  renderSlots();
+  markTray(ti);
+  SFX.hint();
+  floatMsg("HINT −" + HINT_COST, "bad");
+  updateHUD();
+  if (slots.indexOf(null) < 0) checkGuess();
+}
+function skipWord() {
+  if (locked || screen !== "game" || !word) return;
+  skippedCount++;
+  streak = 0;
+  score = Math.max(0, score - SKIP_COST);
+  SFX.skip();
+  floatMsg(word.w.toUpperCase() + "  −" + SKIP_COST, "bad");
+  locked = true;
+  updateHUD();
+  var seq = roundSeq;
+  setTimeout(function () {
+    if (seq !== roundSeq || screen !== "game") return;
+    locked = false;
+    startWord();
+  }, 800);
+}
+function shuffleTray() {
+  if (locked || screen !== "game") return;
+  var order = [], i;
+  for (i = 0; i < tiles.length; i++) if (!tiles[i].used) order.push(tiles[i].el);
+  for (i = order.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = order[i]; order[i] = order[j]; order[j] = t;
+  }
+  var tray = $("tray");
+  for (i = 0; i < order.length; i++) tray.appendChild(order[i]); // 仅重排 DOM，瓦片 id 不变
+  SFX.shuffle();
+}
+
+/* ===================== 计时与流程 ===================== */
+function startTimer() {
+  stopTimer();
+  endAt = Date.now() + MODES.blitz.time * 1000;
+  timeLeft = MODES.blitz.time;
+  lastTickSec = -1;
+  timerId = setInterval(onTick, 100);
+  onTick();
+}
+function onTick() {
+  timeLeft = Math.max(0, (endAt - Date.now()) / 1000);
+  updateCenter();
+  var s = Math.ceil(timeLeft);
+  if (s !== lastTickSec) {
+    lastTickSec = s;
+    if (s <= 10 && s > 0) SFX.tick();
+  }
+  if (timeLeft <= 0) endRound();
+}
+function stopTimer() {
+  if (timerId) { clearInterval(timerId); timerId = null; }
+}
+function startGame(m) {
+  mode = m;
+  roundSeq++;
+  score = 0; streak = 0; roundStreak = 0; solvedCount = 0; skippedCount = 0;
+  word = null; locked = false; pausedRemain = null;
+  screen = "game";
+  $("menuScreen").classList.remove("active");
+  $("gameScreen").classList.add("active");
+  $("resultOverlay").classList.remove("show");
+  updateHUD();
+  portalStart();
+  wasPlaying = true;
+  SFX.start();
+  if (mode === "blitz") startTimer();
+  startWord();
+}
+function endRound() {
+  if (screen !== "game") return;
+  screen = "over";
+  stopTimer();
+  if (wasPlaying) { portalStop(); wasPlaying = false; }
+  var best = mode === "blitz" ? bestBlitz : bestZen;
+  var isNew = score > best;
+  if (isNew) {
+    if (mode === "blitz") { bestBlitz = score; sSet("ws_best_blitz", String(score)); }
+    else { bestZen = score; sSet("ws_best_zen", String(score)); }
+  }
+  $("rTitle").textContent = mode === "blitz" ? "TIME'S UP" : "ALL DONE!";
+  $("rNew").style.display = isNew ? "inline-block" : "none";
+  $("rScore").textContent = String(score);
+  $("rLines").textContent = "Words " + solvedCount + " · Top streak " + roundStreak + " · Skipped " + skippedCount;
+  $("rBestLine").textContent = "BEST " + Math.max(best, score);
+  $("resultOverlay").classList.add("show");
+  if (isNew) portalHappy();
+  SFX.over();
+}
+function quitToMenu() {
+  stopTimer();
+  if (wasPlaying) { portalStop(); wasPlaying = false; }
+  roundSeq++;
+  locked = false;
+  screen = "menu";
+  $("gameScreen").classList.remove("active");
+  $("menuScreen").classList.add("active");
+  $("resultOverlay").classList.remove("show");
+  refreshMenu();
+}
+function refreshMenu() {
+  $("mBestBlitz").textContent = String(bestBlitz);
+  $("mBestZen").textContent = String(bestZen);
+  $("mStreak").textContent = String(streakMax);
+  $("mWords").textContent = String(BANK.length);
+  $("btnTheme").textContent = "THEME: " + theme.toUpperCase();
+  $("btnSound").textContent = "SOUND: " + (muted ? "OFF" : "ON");
+  $("btnSoundG").textContent = muted ? "UNMUTE" : "MUTE";
+  buildLogo();
+}
+function toggleSound() {
+  muted = !muted;
+  sSet("ws_mute", muted ? "1" : "0");
+  refreshMenu();
+  if (!muted) beep(660, 0.08, "sine", 0.08);
+}
+function toggleTheme() {
+  theme = theme === "neon" ? "wood" : "neon";
+  sSet("ws_theme", theme);
+  document.body.className = "theme-" + theme;
+  refreshMenu();
+}
+
+/* ===================== 输入 ===================== */
+document.addEventListener("keydown", function (e) {
+  if (screen === "over") {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startGame(mode); }
+    return;
+  }
+  if (screen !== "game") return;
+  if (e.key === "Escape") { quitToMenu(); return; }
+  if (locked) return;
+  if (e.key === " ") { e.preventDefault(); shuffleTray(); return; }
+  if (e.key === "Backspace") { e.preventDefault(); undoLast(); return; }
+  var k = e.key.toLowerCase();
+  if (/^[a-z]$/.test(k)) {
+    for (var i = 0; i < tiles.length; i++) {
+      if (!tiles[i].used && tiles[i].ch === k) { place(i); return; }
+    }
+  }
+});
+document.addEventListener("touchmove", function (e) {
+  if (screen === "game") e.preventDefault();
+}, { passive: false });
+document.addEventListener("contextmenu", function (e) {
+  if (screen === "game") e.preventDefault();
+});
+/* 后台切走时暂停 Blitz 计时，回来继续 */
+document.addEventListener("visibilitychange", function () {
+  if (document.hidden) {
+    if (screen === "game" && mode === "blitz" && timerId) {
+      pausedRemain = Math.max(0, endAt - Date.now());
+      stopTimer();
+    }
+  } else if (pausedRemain != null && screen === "game" && mode === "blitz") {
+    endAt = Date.now() + pausedRemain;
+    pausedRemain = null;
+    stopTimer();
+    timerId = setInterval(onTick, 100);
+    onTick();
+  }
+});
+$("btnBlitz").addEventListener("click", function () { startGame("blitz"); });
+$("btnZen").addEventListener("click", function () { startGame("zen"); });
+$("btnShuffle").addEventListener("click", shuffleTray);
+$("btnHint").addEventListener("click", useHint);
+$("btnSkip").addEventListener("click", skipWord);
+$("btnQuit").addEventListener("click", quitToMenu);
+$("btnSound").addEventListener("click", toggleSound);
+$("btnSoundG").addEventListener("click", toggleSound);
+$("btnTheme").addEventListener("click", toggleTheme);
+$("btnAgain").addEventListener("click", function () { startGame(mode); });
+$("btnMenu2").addEventListener("click", quitToMenu);
+window.addEventListener("resize", layoutTiles);
+
+/* ===================== 启动 ===================== */
+document.body.className = "theme-" + theme;
+refreshMenu();
+/* 调试/测试钩子（不影响游戏逻辑） */
+window.__ws = {
+  bank: BANK,
+  scrambleWord: scrambleWord,
+  get state() { return { screen: screen, mode: mode, score: score, streak: streak, solved: solvedCount, word: word ? word.w : null, hintCount: hintCount }; }
+};
+</script>
+</body>
+</html>
